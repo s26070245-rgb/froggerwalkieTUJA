@@ -3,268 +3,1096 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐔 emoji chicken · slow & simple</title>
+    <title>🐔 emoji chicken · vs bot & worlds</title>
     <style>
+        /* Universal box-sizing and user-select reset */
         * {
             box-sizing: border-box;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        :root {
+            --bg-outer: #1f3b1f;
+            --bg-panel: #152b15;
+            --bg-pill: #0d2b0d;
+            --text-main: #e9f5d0;
+            --text-muted: #b8d9a4;
+            --accent: #e7b42e;
+            --accent-shadow: #8f6f1a;
+            --pill-inset: #4a7a4a;
         }
         body {
             margin: 0;
             min-height: 100vh;
-            background: #1f3b1f;
+            background: var(--bg-outer);
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            padding: 12px;
-        }
-        /* ultra-flat container – no nested borders, minimal chrome */
-        .game-area {
-            background: #1f3b1f;
             padding: 10px;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-            max-width: 680px;
-            width: 100%;
+            transition: background 0.35s ease;
         }
-        canvas {
-            display: block;
-            margin: 0 auto;
-            border-radius: 16px;
-            background: #2a6b2a;
+        /* ultra-flat container – themed dynamically per world */
+        .game-area {
+            background: var(--bg-panel);
+            padding: 12px;
+            border-radius: 22px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+            max-width: 700px;
             width: 100%;
-            height: auto;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            cursor: crosshair;
-            touch-action: none;
+            transition: background 0.35s ease;
         }
-        /* single flat row for score + restart */
-        .top-bar {
+        /* Top control header: Mode, Worlds, Level, Scores, Restart */
+        .hud-header {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: var(--text-main);
+        }
+        .hud-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            padding: 0 4px;
-            color: #e9f5d0;
-            font-weight: bold;
-            font-size: 1.3rem;
-            text-shadow: 2px 2px 0 #0a1f0a;
+            flex-wrap: wrap;
+            gap: 6px;
         }
-        .score {
-            background: #0d2b0d;
-            padding: 4px 18px;
+        .pill-group {
+            display: flex;
+            align-items: center;
+            background: var(--bg-pill);
+            padding: 3px;
             border-radius: 40px;
-            letter-spacing: 1px;
-            box-shadow: inset 0 -2px 0 #4a7a4a;
+            box-shadow: inset 0 -2px 0 var(--pill-inset);
+            gap: 2px;
         }
-        .restart {
-            background: #e7b42e;
+        .pill-btn {
+            background: transparent;
             border: none;
-            font-size: 1.3rem;
-            padding: 4px 18px 6px;
+            color: var(--text-muted);
+            font-weight: 800;
+            font-size: 0.92rem;
+            padding: 5px 12px;
+            border-radius: 36px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s ease;
+        }
+        .pill-btn:hover {
+            color: #ffffff;
+        }
+        .pill-btn.active {
+            background: var(--accent);
+            color: #1a1f0e;
+            box-shadow: 0 2px 0 var(--accent-shadow);
+        }
+        .world-btn {
+            font-size: 1.05rem;
+            padding: 4px 10px;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .world-btn.locked {
+            opacity: 0.48;
+            cursor: not-allowed;
+        }
+        .world-btn .badge-mini {
+            font-size: 0.68rem;
+            line-height: 1;
+        }
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 99px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .progress-fill {
+            height: 100%;
+            width: 5%;
+            background: var(--accent);
+            border-radius: 99px;
+            transition: width 0.25s ease, background 0.35s ease;
+        }
+        .stat-badge {
+            background: var(--bg-pill);
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-weight: 800;
+            font-size: 1.05rem;
+            letter-spacing: 0.5px;
+            box-shadow: inset 0 -2px 0 var(--pill-inset);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.6);
+        }
+        .p1-tag { color: #fff59d; }
+        .p2-tag { color: #80deea; }
+        .lvl-tag { color: #ffcc80; }
+        .restart {
+            background: var(--accent);
+            border: none;
+            font-size: 1.02rem;
+            padding: 5px 15px 7px;
             border-radius: 40px;
             font-weight: 800;
             color: #1e2a0e;
-            box-shadow: 0 4px 0 #8f6f1a;
+            box-shadow: 0 4px 0 var(--accent-shadow);
             cursor: pointer;
             font-family: inherit;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             transition: 0.05s linear;
             transform: translateY(-1px);
         }
         .restart:active {
-            box-shadow: 0 1px 0 #8f6f1a;
+            box-shadow: 0 1px 0 var(--accent-shadow);
             transform: translateY(3px);
+        }
+        .canvas-wrap {
+            position: relative;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #2a6b2a;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        /* Match / Round Overlay Banner inside Canvas Wrapper */
+        .overlay-banner {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 18, 12, 0.82);
+            backdrop-filter: blur(4px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            color: #ffffff;
+            z-index: 10;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .overlay-banner.visible {
+            display: flex;
+        }
+        .overlay-title {
+            font-size: clamp(1.5rem, 4vw, 2.3rem);
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.7);
+        }
+        .overlay-sub {
+            font-size: 1.02rem;
+            color: #dcedc8;
+            margin-bottom: 18px;
+            font-weight: 600;
+            max-width: 440px;
+        }
+        .overlay-btn {
+            background: var(--accent);
+            border: none;
+            font-size: 1.1rem;
+            padding: 10px 26px 12px;
+            border-radius: 40px;
+            font-weight: 900;
+            color: #1e2a0e;
+            box-shadow: 0 5px 0 var(--accent-shadow);
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .overlay-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 var(--accent-shadow);
+        }
+        /* Compact touch D-Pad for mobile/tablet play */
+        .touch-controls {
+            display: none;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .touch-controls.active {
+            display: flex;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 46px);
+            grid-template-rows: repeat(2, 46px);
+            gap: 5px;
+            background: var(--bg-pill);
+            padding: 8px;
+            border-radius: 18px;
+            box-shadow: inset 0 -2px 0 var(--pill-inset);
+        }
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.14);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1.15rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dpad-btn:active {
+            background: var(--accent);
+            color: #111;
+        }
+        .dpad-label {
+            grid-column: 1;
+            grid-row: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
         }
         .hint {
             text-align: center;
             margin-top: 8px;
-            color: #b8d9a4;
-            font-size: 0.95rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .pad-toggle {
+            background: var(--bg-pill);
+            border: none;
+            color: var(--text-main);
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @media (max-width: 520px) {
+            .stat-badge { font-size: 0.92rem; padding: 4px 10px; }
+            .pill-btn { font-size: 0.82rem; padding: 4px 9px; }
+            .world-btn { padding: 4px 7px; font-size: 0.95rem; }
+            .restart { font-size: 0.9rem; padding: 4px 11px 6px; }
         }
     </style>
 </head>
 <body>
-<div class="game-area">
-    <!-- single row – no nested divs beyond this -->
-    <div class="top-bar">
-        <span class="score">🏆 <span id="scoreDisplay">0</span></span>
-        <button class="restart" id="restartButton">↻ RESTART</button>
+<div class="game-area" id="gameArea">
+    <div class="hud-header">
+        <!-- Row 1: Mode Switcher + World Selector -->
+        <div class="hud-row">
+            <div class="pill-group" role="group" aria-label="Game Mode">
+                <button class="pill-btn active" id="mode1P">1P SOLO</button>
+                <button class="pill-btn" id="mode2P">VS BOT 🤖</button>
+            </div>
+
+            <div class="pill-group" role="group" aria-label="World Selector">
+                <button class="pill-btn world-btn active" data-world="0" title="World 1: Country Road">🌳</button>
+                <button class="pill-btn world-btn locked" data-world="1" title="Locked: Finish 20 rounds of Country Road">🌃<span class="badge-mini">🔒</span></button>
+                <button class="pill-btn world-btn locked" data-world="2" title="Locked: Finish 20 rounds of Cyber City">🌋<span class="badge-mini">🔒</span></button>
+                <button class="pill-btn world-btn locked" data-world="3" title="Locked: Finish 20 rounds of Volcano">❄️<span class="badge-mini">🔒</span></button>
+            </div>
+        </div>
+
+        <!-- World 20-Round Progress Bar -->
+        <div class="progress-track" title="World Campaign Progress (20 Rounds)">
+            <div class="progress-fill" id="worldProgressFill"></div>
+        </div>
+
+        <!-- Row 2: Level, Scoreboard, Restart -->
+        <div class="hud-row">
+            <div class="stat-badge">
+                <span class="lvl-tag" id="levelDisplay">LVL 1/20</span>
+                <span style="opacity:0.4">|</span>
+                <span id="worldNameDisplay" style="font-size:0.88rem;">COUNTRY</span>
+            </div>
+
+            <div class="stat-badge" id="scoreBoard"></div>
+
+            <button class="restart" id="restartButton">↻ RESTART</button>
+        </div>
     </div>
-    <canvas id="gameCanvas" width="640" height="480"></canvas>
-    <div class="hint">🐔 arrow keys / swipe · slow cars · reach 🏁</div>
+
+    <div class="canvas-wrap">
+        <canvas id="gameCanvas" width="640" height="720"></canvas>
+        <div class="overlay-banner" id="overlayBanner">
+            <div class="overlay-title" id="overlayTitle">🏆 YOU WIN!</div>
+            <div class="overlay-sub" id="overlaySub">First to 5 points wins the match!</div>
+            <button class="overlay-btn" id="overlayActionBtn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- Compact On-Screen Touch D-Pad -->
+    <div class="touch-controls" id="touchControls">
+        <div class="dpad" aria-label="Player Controls">
+            <div class="dpad-label">🐔</div>
+            <button class="dpad-btn" data-p="1" data-dir="up" style="grid-column:2;grid-row:1;">▲</button>
+            <button class="dpad-btn" data-p="1" data-dir="left" style="grid-column:1;grid-row:2;">◀</button>
+            <button class="dpad-btn" data-p="1" data-dir="down" style="grid-column:2;grid-row:2;">▼</button>
+            <button class="dpad-btn" data-p="1" data-dir="right" style="grid-column:3;grid-row:2;">▶</button>
+        </div>
+    </div>
+
+    <div class="hint">
+        <span id="hintText">🐔 WASD / Arrows / Swipe · finish 20 rounds to unlock next world!</span>
+        <button class="pad-toggle" id="togglePadBtn">🎮 D-PAD</button>
+    </div>
 </div>
 <script>
     (function() {
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreSpan = document.getElementById('scoreDisplay');
+        const scoreBoard = document.getElementById('scoreBoard');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const worldNameDisplay = document.getElementById('worldNameDisplay');
+        const worldProgressFill = document.getElementById('worldProgressFill');
+        const hintText = document.getElementById('hintText');
+        const overlayBanner = document.getElementById('overlayBanner');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySub = document.getElementById('overlaySub');
+        const overlayActionBtn = document.getElementById('overlayActionBtn');
+        const touchControls = document.getElementById('touchControls');
+        const worldButtons = document.querySelectorAll('.world-btn');
 
-        // ---------- grid ----------
+        // ---------- Web Audio Sound Synthesizer (No external audio files) ----------
+        let audioCtx = null;
+        function playTone(freq, type, duration, vol = 0.08, slideFreq = null) {
+            try {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) audioCtx = new AudioContext();
+                }
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                if (slideFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(slideFreq, audioCtx.currentTime + duration);
+                }
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                // Ignore audio errors if blocked by browser autoplay policy
+            }
+        }
+
+        function sfxHop() { playTone(380, 'sine', 0.07, 0.06, 540); }
+        function sfxHit() { playTone(160, 'sawtooth', 0.22, 0.10, 55); }
+        function sfxGoal() {
+            playTone(523.25, 'triangle', 0.12, 0.09);
+            setTimeout(() => playTone(659.25, 'triangle', 0.16, 0.09), 90);
+        }
+        function sfxWorldClear() {
+            [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+                setTimeout(() => playTone(f, 'triangle', 0.22, 0.11), idx * 110);
+            });
+        }
+
+        // ---------- Grid & Campaign Constants ----------
         const COLS = 8;
-        const ROWS = 9;
+        const ROWS = 18;
         const CELL_W = canvas.width / COLS;   // 80
-        const CELL_H = canvas.height / ROWS;  // 53.333
+        const CELL_H = canvas.height / ROWS;  // 40
+        const LEVELS_PER_WORLD = 20;          // 20 progressive rounds per world
+        const PVP_WIN_TARGET = 5;             // First to 5 wins in VS BOT mode
 
-        // ---------- state ----------
-        let score = 0;
-        let chicken = { col: 3, row: 0 };  // bottom row 0
+        // ---------- 4 Distinct Multi-Lane Road Highways + Safe Medians ----------
+        const SAFE_ROWS = [0, 4, 8, 12, 16];
+        const ROAD_ROWS = [1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15];
+        const GOAL_ROW = 17;
 
-        // cars: smooth fractional column, slower speeds
-        let cars = [];
+        // ---------- 4 Distinct Worlds ----------
+        const WORLDS = [
+            {
+                id: 0,
+                name: 'COUNTRY',
+                icon: '🌳',
+                outerBg: '#1f3b1f',
+                panelBg: '#152b15',
+                pillBg: '#0d2b0d',
+                accent: '#e7b42e',
+                accentShadow: '#8f6f1a',
+                pillInset: '#4a7a4a',
+                startGrass: '#4caf50',
+                safeGrass: '#388e3c',
+                roadBg: '#2c3e50',
+                laneMark: '#f1c40f',
+                goalA: '#f5e6b0',
+                goalB: '#d4af37',
+                goalEmoji: '🏁',
+                decorEmoji: '🌼',
+                vehicles: ['🚗', '🚙', '🚕', '🚌', '🚚', '🚜'],
+                baseMinSpeed: 0.009,
+                baseMaxSpeed: 0.017
+            },
+            {
+                id: 1,
+                name: 'CYBER CITY',
+                icon: '🌃',
+                outerBg: '#121026',
+                panelBg: '#1b1738',
+                pillBg: '#0e0c21',
+                accent: '#00f5d4',
+                accentShadow: '#008f7a',
+                pillInset: '#4a3f8c',
+                startGrass: '#2b2459',
+                safeGrass: '#221c47',
+                roadBg: '#141629',
+                laneMark: '#ff2a85',
+                goalA: '#2b2459',
+                goalB: '#3d327a',
+                goalEmoji: '⚡',
+                decorEmoji: '✨',
+                vehicles: ['🏎️', '🚓', '🚑', '🛸', '🚝', '🤖'],
+                baseMinSpeed: 0.011,
+                baseMaxSpeed: 0.020
+            },
+            {
+                id: 2,
+                name: 'VOLCANO',
+                icon: '🌋',
+                outerBg: '#2b120d',
+                panelBg: '#3b1811',
+                pillBg: '#240c08',
+                accent: '#ff7043',
+                accentShadow: '#9e3616',
+                pillInset: '#7a3324',
+                startGrass: '#5d4037',
+                safeGrass: '#4e342e',
+                roadBg: '#211514',
+                laneMark: '#ff5722',
+                goalA: '#ffcc80',
+                goalB: '#ff8a65',
+                goalEmoji: '💎',
+                decorEmoji: '🔥',
+                vehicles: ['☄️', '🔥', '🦖', '🐉', '🪨', '👹'],
+                baseMinSpeed: 0.012,
+                baseMaxSpeed: 0.022
+            },
+            {
+                id: 3,
+                name: 'ARCTIC ICE',
+                icon: '❄️',
+                outerBg: '#0f2938',
+                panelBg: '#15384d',
+                pillBg: '#0b2230',
+                accent: '#4dd0e1',
+                accentShadow: '#00838f',
+                pillInset: '#3a7a99',
+                startGrass: '#80deea',
+                safeGrass: '#4dd0e1',
+                roadBg: '#1b4965',
+                laneMark: '#e0f7fa',
+                goalA: '#e0f7fa',
+                goalB: '#b2ebf2',
+                goalEmoji: '👑',
+                decorEmoji: '❄️',
+                vehicles: ['🛷', '🐧', '🐻‍❄️', '🦭', '❄️', '🧊'],
+                baseMinSpeed: 0.013,
+                baseMaxSpeed: 0.024
+            }
+        ];
 
-        const carEmojis = ['🚗', '🚙', '🚕', '🚌', '🚚', '🚓'];
+        // ---------- Persistent Campaign Progress ----------
+        const STORAGE_KEY = 'emoji_chicken_campaign_v2';
+        let campaign = {
+            unlockedWorlds: [true, false, false, false],
+            completedWorlds: [false, false, false, false],
+            worldLevels: [1, 1, 1, 1]
+        };
 
-        // ---------- initialize cars – significantly slower ----------
-        function resetCars() {
-            cars = [];
-            const roadRows = [2, 3, 4, 5, 6];
-            roadRows.forEach(row => {
-                // 2 or 3 cars per row
-                const carCount = (row % 2 === 0) ? 3 : 2;
-                // alternate direction per row
-                const dir = (row % 2 === 0) ? 1 : -1;
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed.unlockedWorlds) && parsed.unlockedWorlds.length === 4) {
+                    campaign.unlockedWorlds = parsed.unlockedWorlds;
+                }
+                if (Array.isArray(parsed.completedWorlds) && parsed.completedWorlds.length === 4) {
+                    campaign.completedWorlds = parsed.completedWorlds;
+                }
+                if (Array.isArray(parsed.worldLevels) && parsed.worldLevels.length === 4) {
+                    campaign.worldLevels = parsed.worldLevels.map(lvl =>
+                        Math.min(Math.max(1, Number(lvl) || 1), LEVELS_PER_WORLD)
+                    );
+                }
+            }
+        } catch (e) {
+            // Ignore storage errors in restricted environments
+        }
+
+        function saveCampaign() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(campaign));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+
+        // ---------- Game State ----------
+        let gameMode = '1P';       // '1P' or '2P' (VS BOT)
+        let currentWorldIdx = 0;   // 0..3
+        let level = campaign.worldLevels[0] || 1;
+        let roundOver = false;
+        let overlayNextAction = null;
+
+        let players = [];
+        let obstacles = [];
+        let particles = [];
+        let floatingTexts = [];
+        let decorItems = [];
+
+        // ---------- Create Players ----------
+        function initPlayers() {
+            if (gameMode === '1P') {
+                players = [
+                    {
+                        id: 1,
+                        name: 'P1',
+                        emoji: '🐔',
+                        col: 3,
+                        row: 0,
+                        score: 0,
+                        glow: '#fff9c4',
+                        invulnFrames: 0
+                    }
+                ];
+            } else {
+                players = [
+                    {
+                        id: 1,
+                        name: 'P1',
+                        emoji: '🐔',
+                        col: 2,
+                        row: 0,
+                        score: 0,
+                        glow: '#fff59d',
+                        invulnFrames: 0
+                    },
+                    {
+                        id: 2,
+                        name: 'BOT',
+                        emoji: '🦆',
+                        col: 5,
+                        row: 0,
+                        score: 0,
+                        glow: '#80deea',
+                        invulnFrames: 0,
+                        isBot: true,
+                        botCooldown: 18
+                    }
+                ];
+            }
+        }
+
+        function respawnPlayer(p) {
+            p.row = 0;
+            if (gameMode === '1P') {
+                p.col = 3;
+            } else {
+                p.col = (p.id === 1) ? 2 : 5;
+            }
+            p.invulnFrames = 35;
+            if (p.isBot) p.botCooldown = 20;
+        }
+
+        // ---------- Decorative Props on Safe Medians ----------
+        function generateDecorations() {
+            decorItems = [];
+            const medianRows = [4, 8, 12, 16];
+            medianRows.forEach(r => {
+                const c1 = Math.floor(Math.random() * 3);
+                const c2 = 5 + Math.floor(Math.random() * 3);
+                decorItems.push({ col: c1, row: r });
+                decorItems.push({ col: c2, row: r });
+            });
+        }
+
+        // ---------- Spawn Cars / Hazards Scaled by World & Round (1..20) ----------
+        function resetObstacles() {
+            obstacles = [];
+            const world = WORLDS[currentWorldIdx];
+            const progressRatio = (level - 1) / (LEVELS_PER_WORLD - 1); // 0.0 at LVL 1 -> 1.0 at LVL 20
+            const speedScale = 1 + progressRatio * 1.15;
+
+            ROAD_ROWS.forEach((row, idx) => {
+                let carCount = (idx % 2 === 0) ? 2 : 3;
+                if (level >= 8 && idx % 3 === 0) carCount = Math.min(carCount + 1, 4);
+                if (level >= 15 && idx % 2 === 1) carCount = Math.min(carCount + 1, 4);
+
+                const dir = (row % 2 === 1) ? 1 : -1;
+                const spacing = COLS / carCount;
+                const rowOffset = (row * 1.37) % COLS;
+
                 for (let i = 0; i < carCount; i++) {
-                    const col = (i * 3 + row * 2) % COLS;
-                    const emoji = carEmojis[Math.floor(Math.random() * carEmojis.length)];
-                    // *** SLOWER SPEED: 0.008 – 0.018 cells/frame ***
-                    const speed = 0.008 + Math.random() * 0.010;
-                    cars.push({
-                        fCol: col,          // fractional column for smooth movement
+                    const col = (i * spacing + rowOffset) % COLS;
+                    const emoji = world.vehicles[Math.floor(Math.random() * world.vehicles.length)];
+                    const rawSpeed = world.baseMinSpeed + Math.random() * (world.baseMaxSpeed - world.baseMinSpeed);
+                    obstacles.push({
+                        fCol: col,
                         row: row,
                         dir: dir,
                         emoji: emoji,
-                        speed: speed
+                        speed: rawSpeed * speedScale
                     });
                 }
             });
         }
 
-        // ---------- reset game (score + chicken + cars) ----------
-        function resetGame() {
-            chicken = { col: 3, row: 0 };
-            score = 0;
-            updateScore();
-            resetCars();
+        // ---------- Apply Theme & Update HUD ----------
+        function applyWorldTheme() {
+            const w = WORLDS[currentWorldIdx];
+            const root = document.documentElement.style;
+            root.setProperty('--bg-outer', w.outerBg);
+            root.setProperty('--bg-panel', w.panelBg);
+            root.setProperty('--bg-pill', w.pillBg);
+            root.setProperty('--accent', w.accent);
+            root.setProperty('--accent-shadow', w.accentShadow);
+            root.setProperty('--pill-inset', w.pillInset);
+
+            worldNameDisplay.textContent = `${w.icon} ${w.name}`;
+            updateWorldButtonsUI();
         }
 
-        function updateScore() {
-            scoreSpan.textContent = score;
+        function updateWorldButtonsUI() {
+            worldButtons.forEach((btn, idx) => {
+                const w = WORLDS[idx];
+                const unlocked = campaign.unlockedWorlds[idx];
+                const completed = campaign.completedWorlds[idx];
+
+                btn.classList.toggle('active', idx === currentWorldIdx);
+                btn.classList.toggle('locked', !unlocked);
+
+                if (!unlocked) {
+                    const prevWorld = WORLDS[idx - 1];
+                    btn.innerHTML = `${w.icon}<span class="badge-mini">🔒</span>`;
+                    btn.title = `Locked: Finish all ${LEVELS_PER_WORLD} rounds of ${prevWorld.name} to unlock!`;
+                } else if (completed) {
+                    btn.innerHTML = `${w.icon}<span class="badge-mini">✅</span>`;
+                    btn.title = `${w.name} (Completed! Round ${campaign.worldLevels[idx]}/${LEVELS_PER_WORLD})`;
+                } else {
+                    btn.innerHTML = `${w.icon}`;
+                    btn.title = `${w.name} (Round ${campaign.worldLevels[idx]}/${LEVELS_PER_WORLD})`;
+                }
+            });
         }
 
-        // ---------- collision: chicken vs any car (rounded column) ----------
-        function checkCollision() {
-            for (let car of cars) {
+        function updateHUD() {
+            levelDisplay.textContent = `LVL ${level}/${LEVELS_PER_WORLD}`;
+            const pct = Math.min(100, Math.max(5, Math.round((level / LEVELS_PER_WORLD) * 100)));
+            worldProgressFill.style.width = `${pct}%`;
+
+            if (gameMode === '1P') {
+                scoreBoard.innerHTML = `<span class="p1-tag">🏆 ${players[0].score}</span>`;
+            } else {
+                scoreBoard.innerHTML = `
+                    <span class="p1-tag">🐔 YOU ${players[0].score}</span>
+                    <span style="opacity:0.45">vs</span>
+                    <span class="p2-tag">🦆 BOT ${players[1].score}</span>
+                    <span style="font-size:0.78rem;opacity:0.7;">(1st to ${PVP_WIN_TARGET})</span>
+                `;
+            }
+            updateWorldButtonsUI();
+        }
+
+        // ---------- Particles & Floating Popups ----------
+        function spawnParticles(col, row, color, count = 14) {
+            const cx = col * CELL_W + CELL_W / 2;
+            const cy = canvas.height - (row + 1) * CELL_H + CELL_H / 2;
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.5 + Math.random() * 4.2;
+                particles.push({
+                    x: cx,
+                    y: cy,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 3 + Math.random() * 4,
+                    color: color,
+                    life: 24 + Math.floor(Math.random() * 14),
+                    maxLife: 38
+                });
+            }
+        }
+
+        function spawnFloatingText(col, row, text, color = '#ffffff') {
+            const cx = col * CELL_W + CELL_W / 2;
+            const cy = canvas.height - (row + 1) * CELL_H + CELL_H / 2;
+            floatingTexts.push({
+                x: cx,
+                y: cy,
+                text: text,
+                color: color,
+                life: 44
+            });
+        }
+
+        // ---------- Overlay Controls ----------
+        function showOverlay(title, subtitle, buttonLabel, onAction) {
+            roundOver = true;
+            overlayTitle.textContent = title;
+            overlaySub.textContent = subtitle;
+            overlayActionBtn.textContent = buttonLabel;
+            overlayNextAction = onAction;
+            overlayBanner.classList.add('visible');
+        }
+
+        function hideOverlay() {
+            roundOver = false;
+            overlayNextAction = null;
+            overlayBanner.classList.remove('visible');
+        }
+
+        overlayActionBtn.addEventListener('click', () => {
+            const fn = overlayNextAction;
+            hideOverlay();
+            if (typeof fn === 'function') fn();
+        });
+
+        // ---------- Reset / Switch World ----------
+        function resetGame(resetScores = true) {
+            hideOverlay();
+            if (resetScores) {
+                initPlayers();
+                level = campaign.worldLevels[currentWorldIdx] || 1;
+            } else {
+                players.forEach(p => respawnPlayer(p));
+            }
+            generateDecorations();
+            resetObstacles();
+            applyWorldTheme();
+            updateHUD();
+        }
+
+        function switchWorld(newIdx) {
+            if (newIdx < 0 || newIdx >= WORLDS.length) return;
+            if (!campaign.unlockedWorlds[newIdx]) {
+                const prevName = WORLDS[newIdx - 1].name;
+                sfxHit();
+                spawnFloatingText(3.5, 8, `🔒 Clear ${prevName} (${LEVELS_PER_WORLD} rounds)!`, '#ffcc80');
+                return;
+            }
+            currentWorldIdx = newIdx;
+            level = campaign.worldLevels[currentWorldIdx] || 1;
+            resetGame(true);
+            sfxHop();
+        }
+
+        // ---------- Collision Detection ----------
+        function isCellOccupiedByCar(col, row) {
+            for (let car of obstacles) {
                 const carCol = Math.round(car.fCol);
-                // wrap column into 0..COLS-1 for fair check
                 const wrappedCol = ((carCol % COLS) + COLS) % COLS;
-                if (car.row === chicken.row && wrappedCol === chicken.col) {
+                if (car.row === row && wrappedCol === col) {
                     return true;
                 }
             }
             return false;
         }
 
-        // ---------- move chicken ----------
-        function moveChicken(direction) {
-            let newCol = chicken.col;
-            let newRow = chicken.row;
+        // ---------- Player Movement & Goal Handling ----------
+        function movePlayer(playerId, direction) {
+            if (roundOver) return;
+            const p = players.find(pl => pl.id === playerId);
+            if (!p) return;
 
-            if (direction === 'up') newRow = Math.min(chicken.row + 1, ROWS - 1);
-            if (direction === 'down') newRow = Math.max(chicken.row - 1, 0);
-            if (direction === 'left') newCol = Math.max(chicken.col - 1, 0);
-            if (direction === 'right') newCol = Math.min(chicken.col + 1, COLS - 1);
+            let newCol = p.col;
+            let newRow = p.row;
 
-            if (newCol === chicken.col && newRow === chicken.row) return;
+            if (direction === 'up') newRow = Math.min(p.row + 1, ROWS - 1);
+            if (direction === 'down') newRow = Math.max(p.row - 1, 0);
+            if (direction === 'left') newCol = Math.max(p.col - 1, 0);
+            if (direction === 'right') newCol = Math.min(p.col + 1, COLS - 1);
 
-            const oldCol = chicken.col, oldRow = chicken.row;
-            chicken.col = newCol;
-            chicken.row = newRow;
+            if (newCol === p.col && newRow === p.row) return;
 
-            // immediate collision check after tentative move
-            if (checkCollision()) {
-                chicken.col = oldCol;
-                chicken.row = oldRow;
+            // Competitive body-blocking in VS BOT mode on middle rows
+            if (gameMode === '2P' && newRow > 0 && newRow < GOAL_ROW) {
+                const other = players.find(pl => pl.id !== playerId);
+                if (other && other.col === newCol && other.row === newRow) {
+                    if (!p.isBot) {
+                        sfxHop();
+                        spawnFloatingText(newCol, newRow, 'BUMP!', '#ffcc80');
+                    }
+                    return;
+                }
+            }
+
+            // Prevent stepping directly into a car occupying that tile
+            if (isCellOccupiedByCar(newCol, newRow)) {
+                if (!p.isBot) {
+                    sfxHit();
+                    spawnFloatingText(p.col, p.row, 'BLOCKED!', '#ff8a80');
+                }
                 return;
             }
 
-            // win condition: reach top row (row 8)
-            if (chicken.row === ROWS - 1) {
-                score++;
-                updateScore();
-                // respawn chicken at start
-                chicken.col = 3;
-                chicken.row = 0;
-                // fresh cars so no immediate unfair hit
-                resetCars();
+            p.col = newCol;
+            p.row = newRow;
+            if (!p.isBot) sfxHop();
+
+            // Check if player reached the top Goal Row (Row 17)
+            if (p.row === GOAL_ROW) {
+                handleGoalReached(p);
             }
         }
 
-        // ---------- update car positions ----------
-        function updateCars() {
-            for (let car of cars) {
-                car.fCol += car.dir * car.speed;
+        function handleGoalReached(scorer) {
+            scorer.score += 1;
+            spawnParticles(scorer.col, scorer.row, WORLDS[currentWorldIdx].accent, 22);
+            spawnFloatingText(scorer.col, scorer.row, `${scorer.emoji} +1!`, '#fff59d');
 
-                // wrap around with margin
-                if (car.fCol > COLS + 0.5) {
-                    car.fCol = -1.0;
-                } else if (car.fCol < -1.0) {
-                    car.fCol = COLS + 0.5;
+            // Check VS BOT Match Winner
+            if (gameMode === '2P' && scorer.score >= PVP_WIN_TARGET) {
+                sfxWorldClear();
+                updateHUD();
+                const winnerTitle = scorer.id === 1 ? '🏆 YOU (🐔) BEAT THE BOT!' : '🤖 BOT (🦆) WINS THE RACE!';
+                showOverlay(
+                    winnerTitle,
+                    `Final Score: 🐔 YOU ${players[0].score} — ${players[1].score} BOT 🦆`,
+                    'PLAY REMATCH',
+                    () => resetGame(true)
+                );
+                return;
+            }
+
+            // Check if player just cleared Round 20 of the current World!
+            if (level >= LEVELS_PER_WORLD) {
+                sfxWorldClear();
+                campaign.completedWorlds[currentWorldIdx] = true;
+                campaign.worldLevels[currentWorldIdx] = LEVELS_PER_WORLD;
+
+                const nextWorldIdx = currentWorldIdx + 1;
+                const hasNextWorld = nextWorldIdx < WORLDS.length;
+                if (hasNextWorld) {
+                    campaign.unlockedWorlds[nextWorldIdx] = true;
+                }
+                saveCampaign();
+                updateHUD();
+
+                const currWorld = WORLDS[currentWorldIdx];
+                if (hasNextWorld) {
+                    const nextWorld = WORLDS[nextWorldIdx];
+                    showOverlay(
+                        `🎉 ${currWorld.icon} ${currWorld.name} CLEARED!`,
+                        `All ${LEVELS_PER_WORLD} rounds complete! ${nextWorld.icon} ${nextWorld.name} is now unlocked!`,
+                        `ENTER ${nextWorld.icon} ${nextWorld.name}`,
+                        () => switchWorld(nextWorldIdx)
+                    );
+                } else {
+                    showOverlay(
+                        `👑 ALL WORLDS MASTERED!`,
+                        `Incredible! You finished all ${LEVELS_PER_WORLD} rounds of ${currWorld.icon} ${currWorld.name}!`,
+                        `REPLAY ${currWorld.icon} ${currWorld.name}`,
+                        () => {
+                            campaign.worldLevels[currentWorldIdx] = 1;
+                            saveCampaign();
+                            resetGame(true);
+                        }
+                    );
+                }
+                return;
+            }
+
+            // Otherwise advance to the next round (1..20)
+            sfxGoal();
+            level += 1;
+            campaign.worldLevels[currentWorldIdx] = level;
+            saveCampaign();
+
+            players.forEach(pl => respawnPlayer(pl));
+            generateDecorations();
+            resetObstacles();
+            updateHUD();
+            spawnFloatingText(3.5, 2, `ROUND ${level}/${LEVELS_PER_WORLD}!`, '#a5d6a7');
+        }
+
+        // ---------- AI Bot Decision Logic ----------
+        function isCellDangerousSoon(col, row, lookaheadFrames = 26) {
+            if (!ROAD_ROWS.includes(row)) return false;
+            for (let car of obstacles) {
+                if (car.row !== row) continue;
+                for (let step = 0; step <= lookaheadFrames; step += 4) {
+                    let futureCol = car.fCol + car.dir * car.speed * step;
+                    while (futureCol > COLS + 0.5) futureCol -= (COLS + 1.5);
+                    while (futureCol < -1.0) futureCol += (COLS + 1.5);
+                    const wrappedCol = ((Math.round(futureCol) % COLS) + COLS) % COLS;
+                    if (wrappedCol === col) return true;
+                }
+            }
+            return false;
+        }
+
+        function updateBotAI() {
+            if (gameMode !== '2P' || roundOver) return;
+            const bot = players.find(pl => pl.isBot);
+            const human = players.find(pl => pl.id === 1);
+            if (!bot) return;
+
+            if (bot.botCooldown > 0) {
+                bot.botCooldown -= 1;
+                return;
+            }
+
+            const baseDelay = Math.max(10, 20 - Math.floor(level * 0.4));
+            bot.botCooldown = baseDelay + Math.floor(Math.random() * 6);
+
+            const isBlockedByHuman = (c, r) =>
+                human && r > 0 && r < GOAL_ROW && human.col === c && human.row === r;
+
+            // 1. Try moving UP if the cell ahead is safe and clear
+            const upRow = Math.min(bot.row + 1, ROWS - 1);
+            if (upRow > bot.row && !isCellDangerousSoon(bot.col, upRow, 28) && !isBlockedByHuman(bot.col, upRow)) {
+                movePlayer(bot.id, 'up');
+                return;
+            }
+
+            // 2. If current road cell is about to be hit, dodge sideways or retreat
+            if (isCellDangerousSoon(bot.col, bot.row, 18)) {
+                const leftCol = Math.max(0, bot.col - 1);
+                const rightCol = Math.min(COLS - 1, bot.col + 1);
+                const downRow = Math.max(0, bot.row - 1);
+
+                const candidates = [];
+                if (leftCol !== bot.col && !isCellDangerousSoon(leftCol, bot.row, 22) && !isBlockedByHuman(leftCol, bot.row)) {
+                    candidates.push('left');
+                }
+                if (rightCol !== bot.col && !isCellDangerousSoon(rightCol, bot.row, 22) && !isBlockedByHuman(rightCol, bot.row)) {
+                    candidates.push('right');
+                }
+                if (candidates.length > 0) {
+                    movePlayer(bot.id, candidates[Math.floor(Math.random() * candidates.length)]);
+                    return;
+                }
+                if (downRow < bot.row && !isCellDangerousSoon(bot.col, downRow, 22) && !isBlockedByHuman(bot.col, downRow)) {
+                    movePlayer(bot.id, 'down');
+                    return;
+                }
+            }
+
+            // 3. Otherwise strafe sideways on safe grass or current lane to look for an opening
+            if (Math.random() < 0.55) {
+                const dirs = Math.random() < 0.5 ? ['left', 'right'] : ['right', 'left'];
+                for (let d of dirs) {
+                    const testCol = d === 'left' ? bot.col - 1 : bot.col + 1;
+                    if (testCol >= 0 && testCol < COLS &&
+                        !isCellDangerousSoon(testCol, bot.row, 24) &&
+                        !isBlockedByHuman(testCol, bot.row)) {
+                        movePlayer(bot.id, d);
+                        return;
+                    }
                 }
             }
         }
 
-        // ---------- collision after car movement ----------
-        function checkCollisionAfterMove() {
-            for (let car of cars) {
-                const carCol = Math.round(car.fCol);
-                const wrappedCol = ((carCol % COLS) + COLS) % COLS;
-                if (car.row === chicken.row && wrappedCol === chicken.col) {
-                    // hit → reset chicken to start
-                    chicken.col = 3;
-                    chicken.row = 0;
-                    // reset cars to avoid instant repeat
-                    resetCars();
-                    break;
+        // ---------- Update Cars, Collisions & Particles ----------
+        function update() {
+            if (!roundOver) {
+                // Move traffic
+                for (let car of obstacles) {
+                    car.fCol += car.dir * car.speed;
+                    if (car.fCol > COLS + 0.5) {
+                        car.fCol = -1.0;
+                    } else if (car.fCol < -1.0) {
+                        car.fCol = COLS + 0.5;
+                    }
                 }
+
+                // Step AI Bot in VS BOT mode
+                updateBotAI();
+
+                // Check car collisions with each player
+                for (let p of players) {
+                    if (p.invulnFrames > 0) {
+                        p.invulnFrames -= 1;
+                        continue;
+                    }
+                    if (isCellOccupiedByCar(p.col, p.row)) {
+                        if (!p.isBot) sfxHit();
+                        spawnParticles(p.col, p.row, '#ff5252', 18);
+                        spawnFloatingText(p.col, p.row, `${p.emoji} BONK!`, '#ff8a80');
+                        respawnPlayer(p);
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.vy += 0.12;
+                pt.life -= 1;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            // Update floating popups
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y -= 0.75;
+                ft.life -= 1;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
             }
         }
 
-        // ---------- draw everything (clean, no extra decorations) ----------
+        // ---------- Render Scene ----------
         function draw() {
+            const world = WORLDS[currentWorldIdx];
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // ----- background rows -----
+            // 1. Background Rows (Start, 4 Multi-Lane Highways, Safe Medians, Goal)
             for (let row = 0; row < ROWS; row++) {
                 const y = canvas.height - (row + 1) * CELL_H;
-                let fillColor = '#2e7d32';
+                let fillColor = world.safeGrass;
 
-                if (row === 0) fillColor = '#4caf50';        // start grass
-                else if (row === 1) fillColor = '#388e3c';   // safe grass
-                else if (row >= 2 && row <= 6) fillColor = '#2c3e50'; // road
-                else if (row === 7) fillColor = '#388e3c';   // safe grass
-                else if (row === 8) fillColor = '#b8860b';   // goal
+                if (row === 0) fillColor = world.startGrass;
+                else if (ROAD_ROWS.includes(row)) fillColor = world.roadBg;
+                else if (row === GOAL_ROW) fillColor = world.goalB;
 
                 ctx.fillStyle = fillColor;
                 ctx.fillRect(0, y, canvas.width, CELL_H);
 
-                // road lane markings
-                if (row >= 2 && row <= 6) {
-                    ctx.fillStyle = '#f1c40f';
+                // Highway outer shoulder stripes
+                if (ROAD_ROWS.includes(row)) {
+                    ctx.fillStyle = world.laneMark;
                     const dashY = y + CELL_H * 0.5;
                     for (let col = 0; col < COLS; col++) {
                         const dashX = col * CELL_W + CELL_W * 0.25;
-                        ctx.fillRect(dashX, dashY - 2, CELL_W * 0.5, 4);
+                        ctx.fillRect(dashX, dashY - 1.5, CELL_W * 0.5, 3);
                     }
                 }
 
-                // subtle grid lines
-                ctx.strokeStyle = '#00000022';
+                // Subtle grid lines
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.16)';
                 ctx.lineWidth = 1;
                 for (let col = 0; col <= COLS; col++) {
                     ctx.beginPath();
@@ -274,134 +1102,221 @@
                 }
             }
 
-            // ----- goal row checkered pattern + flag -----
-            const goalY = canvas.height - (8 + 1) * CELL_H;
-            for (let col = 0; col < COLS; col++) {
-                ctx.fillStyle = (col % 2 === 0) ? '#f5e6b0' : '#d4af37';
-                ctx.fillRect(col * CELL_W, goalY, CELL_W, CELL_H);
-                ctx.font = `${CELL_H * 0.5}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#00000055';
-                ctx.fillText('🏁', col * CELL_W + CELL_W/2, goalY + CELL_H/2 + 2);
-                ctx.fillStyle = '#ffffffdd';
-                ctx.fillText('🏁', col * CELL_W + CELL_W/2, goalY + CELL_H/2);
+            // 2. Decorative props on Safe Medians
+            ctx.font = `${CELL_H * 0.55}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let item of decorItems) {
+                const dx = item.col * CELL_W + CELL_W / 2;
+                const dy = canvas.height - (item.row + 1) * CELL_H + CELL_H / 2;
+                ctx.globalAlpha = 0.72;
+                ctx.fillText(world.decorEmoji, dx, dy);
+                ctx.globalAlpha = 1.0;
             }
 
-            // ----- draw cars (smooth position) -----
-            cars.forEach(car => {
+            // 3. Goal Row Checkered Pattern + World Goal Icon
+            const goalY = canvas.height - (GOAL_ROW + 1) * CELL_H;
+            for (let col = 0; col < COLS; col++) {
+                ctx.fillStyle = (col % 2 === 0) ? world.goalA : world.goalB;
+                ctx.fillRect(col * CELL_W, goalY, CELL_W, CELL_H);
+                ctx.font = `${CELL_H * 0.55}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                ctx.fillText(world.goalEmoji, col * CELL_W + CELL_W / 2, goalY + CELL_H / 2 + 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(world.goalEmoji, col * CELL_W + CELL_W / 2, goalY + CELL_H / 2);
+            }
+
+            // 4. Draw Vehicles / World Hazards
+            obstacles.forEach(car => {
                 let displayCol = car.fCol;
-                // wrap for drawing
                 if (displayCol > COLS) displayCol -= COLS;
                 if (displayCol < -0.5) displayCol += COLS;
 
                 const x = displayCol * CELL_W + CELL_W / 2;
                 const y = canvas.height - (car.row + 1) * CELL_H + CELL_H / 2;
 
-                // simple shadow for depth
-                ctx.shadowColor = '#00000080';
-                ctx.shadowBlur = 8;
-                ctx.shadowOffsetY = 3;
-                ctx.font = `${CELL_H * 0.8}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 2;
+                ctx.font = `${CELL_H * 0.82}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText(car.emoji, x, y);
-                // reset shadow
+
                 ctx.shadowColor = 'transparent';
                 ctx.shadowBlur = 0;
                 ctx.shadowOffsetY = 0;
             });
 
-            // ----- draw chicken with soft glow -----
-            const chickenX = chicken.col * CELL_W + CELL_W / 2;
-            const chickenY = canvas.height - (chicken.row + 1) * CELL_H + CELL_H / 2;
+            // 5. Draw Players (Chicken & Bot Duck in VS BOT mode)
+            players.forEach(p => {
+                if (p.invulnFrames > 0 && Math.floor(p.invulnFrames / 4) % 2 === 1) {
+                    return; // Brief blink on respawn
+                }
+                const px = p.col * CELL_W + CELL_W / 2;
+                const py = canvas.height - (p.row + 1) * CELL_H + CELL_H / 2;
 
-            ctx.shadowColor = '#fff9c4';
-            ctx.shadowBlur = 16;
-            ctx.font = `${CELL_H * 0.9}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText('🐔', chickenX, chickenY);
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur = 0;
+                // Small tag badge in VS BOT mode
+                if (gameMode === '2P') {
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = p.id === 1 ? '#fff59d' : '#80deea';
+                    ctx.fillText(p.id === 1 ? 'YOU' : 'BOT', px, py - CELL_H * 0.44);
+                }
+
+                ctx.shadowColor = p.glow;
+                ctx.shadowBlur = 14;
+                ctx.font = `${CELL_H * 0.9}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(p.emoji, px, py);
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            });
+
+            // 6. Particles
+            for (let pt of particles) {
+                ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+
+            // 7. Floating Text Popups
+            for (let ft of floatingTexts) {
+                ctx.globalAlpha = Math.min(1, ft.life / 20);
+                ctx.font = '900 16px "Segoe UI", Roboto, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#000000';
+                ctx.fillText(ft.text, ft.x + 1.5, ft.y + 1.5);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+            }
+            ctx.globalAlpha = 1.0;
         }
 
-        // ---------- game loop ----------
+        // ---------- Main Game Loop ----------
         function gameLoop() {
-            updateCars();
-            checkCollisionAfterMove();  // chicken may be hit
+            update();
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        // ---------- keyboard ----------
+        // ---------- Keyboard Controls ----------
         function handleKey(e) {
             const key = e.key;
             if (key.startsWith('Arrow')) e.preventDefault();
-            if (key === 'ArrowUp') moveChicken('up');
-            else if (key === 'ArrowDown') moveChicken('down');
-            else if (key === 'ArrowLeft') moveChicken('left');
-            else if (key === 'ArrowRight') moveChicken('right');
+            if (roundOver) return;
+
+            const lower = key.toLowerCase();
+            // Both WASD and Arrow Keys control Player 1 (🐔) in both 1P Solo and VS Bot modes
+            if (key === 'ArrowUp' || lower === 'w') movePlayer(1, 'up');
+            else if (key === 'ArrowDown' || lower === 's') movePlayer(1, 'down');
+            else if (key === 'ArrowLeft' || lower === 'a') movePlayer(1, 'left');
+            else if (key === 'ArrowRight' || lower === 'd') movePlayer(1, 'right');
         }
 
-        // ---------- touch swipe (simple) ----------
-        let touchStartX = 0, touchStartY = 0;
-        let touchMoved = false;
+        // ---------- Touch Swipe Controls ----------
+        const activeTouches = new Map();
 
         function handleTouchStart(e) {
             e.preventDefault();
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
-            touchMoved = false;
+            for (let t of e.changedTouches) {
+                activeTouches.set(t.identifier, {
+                    startX: t.clientX,
+                    startY: t.clientY,
+                    moved: false,
+                    playerId: 1
+                });
+            }
         }
 
         function handleTouchMove(e) {
             e.preventDefault();
-            if (touchMoved) return;
-            if (e.touches.length === 0) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchStartX;
-            const dy = touch.clientY - touchStartY;
-            const absDx = Math.abs(dx);
-            const absDy = Math.abs(dy);
+            for (let t of e.changedTouches) {
+                const state = activeTouches.get(t.identifier);
+                if (!state || state.moved) continue;
 
-            if (Math.max(absDx, absDy) < 18) return;
+                const dx = t.clientX - state.startX;
+                const dy = t.clientY - state.startY;
+                if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) continue;
 
-            touchMoved = true;
-            if (absDx > absDy) {
-                if (dx > 0) moveChicken('right');
-                else moveChicken('left');
-            } else {
-                if (dy > 0) moveChicken('down');
-                else moveChicken('up');
+                state.moved = true;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    movePlayer(state.playerId, dx > 0 ? 'right' : 'left');
+                } else {
+                    movePlayer(state.playerId, dy > 0 ? 'down' : 'up');
+                }
             }
         }
 
         function handleTouchEnd(e) {
             e.preventDefault();
-            touchMoved = false;
+            for (let t of e.changedTouches) {
+                activeTouches.delete(t.identifier);
+            }
         }
 
-        // ---------- restart button ----------
-        document.getElementById('restartButton').addEventListener('click', () => {
-            resetGame();
-            draw();
+        // ---------- UI Button Listeners ----------
+        document.getElementById('mode1P').addEventListener('click', () => {
+            gameMode = '1P';
+            document.getElementById('mode1P').classList.add('active');
+            document.getElementById('mode2P').classList.remove('active');
+            hintText.textContent = '🐔 WASD / Arrows / Swipe · finish 20 rounds to unlock next world!';
+            resetGame(true);
         });
 
-        // ---------- attach listeners ----------
+        document.getElementById('mode2P').addEventListener('click', () => {
+            gameMode = '2P';
+            document.getElementById('mode2P').classList.add('active');
+            document.getElementById('mode1P').classList.remove('active');
+            hintText.textContent = '🐔 YOU (WASD / Arrows / Swipe) vs 🤖 BOT (🦆) · 1st to 5 wins!';
+            resetGame(true);
+        });
+
+        worldButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const wIdx = Number(btn.dataset.world);
+                switchWorld(wIdx);
+            });
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            campaign.worldLevels[currentWorldIdx] = 1;
+            saveCampaign();
+            resetGame(true);
+        });
+
+        document.getElementById('togglePadBtn').addEventListener('click', () => {
+            touchControls.classList.toggle('active');
+        });
+
+        document.querySelectorAll('.dpad-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pId = Number(btn.dataset.p);
+                const dir = btn.dataset.dir;
+                movePlayer(pId, dir);
+            });
+        });
+
+        // ---------- Attach Global Event Listeners ----------
         window.addEventListener('keydown', handleKey);
         canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
         canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
         canvas.addEventListener('touchend', handleTouchEnd);
         canvas.addEventListener('touchcancel', handleTouchEnd);
 
-        // ---------- init ----------
-        resetGame();
-        draw();
-        gameLoop();
+        // ---------- Initialize & Start Loop ----------
+        window.onload = function() {
+            resetGame(true);
+            gameLoop();
+        };
     })();
 </script>
 </body>
