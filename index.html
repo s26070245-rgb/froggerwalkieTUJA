@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐸 emoji frogger · slow & simple</title>
+    <title>🐔 emoji chicken · slow & simple</title>
     <style>
         * {
             box-sizing: border-box;
@@ -97,7 +97,7 @@
         <button class="restart" id="restartButton">↻ RESTART</button>
     </div>
     <canvas id="gameCanvas" width="640" height="480"></canvas>
-    <div class="hint">🐸 arrow keys / swipe · slow cars · reach 🏁</div>
+    <div class="hint">🐔 arrow keys / swipe · slow cars · reach 🏁</div>
 </div>
 <script>
     (function() {
@@ -113,7 +113,7 @@
 
         // ---------- state ----------
         let score = 0;
-        let frog = { col: 3, row: 0 };  // bottom row 0
+        let chicken = { col: 3, row: 0 };  // bottom row 0
 
         // cars: smooth fractional column, slower speeds
         let cars = [];
@@ -145,9 +145,9 @@
             });
         }
 
-        // ---------- reset game (score + frog + cars) ----------
+        // ---------- reset game (score + chicken + cars) ----------
         function resetGame() {
-            frog = { col: 3, row: 0 };
+            chicken = { col: 3, row: 0 };
             score = 0;
             updateScore();
             resetCars();
@@ -157,49 +157,49 @@
             scoreSpan.textContent = score;
         }
 
-        // ---------- collision: frog vs any car (rounded column) ----------
+        // ---------- collision: chicken vs any car (rounded column) ----------
         function checkCollision() {
             for (let car of cars) {
                 const carCol = Math.round(car.fCol);
                 // wrap column into 0..COLS-1 for fair check
                 const wrappedCol = ((carCol % COLS) + COLS) % COLS;
-                if (car.row === frog.row && wrappedCol === frog.col) {
+                if (car.row === chicken.row && wrappedCol === chicken.col) {
                     return true;
                 }
             }
             return false;
         }
 
-        // ---------- move frog ----------
-        function moveFrog(direction) {
-            let newCol = frog.col;
-            let newRow = frog.row;
+        // ---------- move chicken ----------
+        function moveChicken(direction) {
+            let newCol = chicken.col;
+            let newRow = chicken.row;
 
-            if (direction === 'up') newRow = Math.min(frog.row + 1, ROWS - 1);
-            if (direction === 'down') newRow = Math.max(frog.row - 1, 0);
-            if (direction === 'left') newCol = Math.max(frog.col - 1, 0);
-            if (direction === 'right') newCol = Math.min(frog.col + 1, COLS - 1);
+            if (direction === 'up') newRow = Math.min(chicken.row + 1, ROWS - 1);
+            if (direction === 'down') newRow = Math.max(chicken.row - 1, 0);
+            if (direction === 'left') newCol = Math.max(chicken.col - 1, 0);
+            if (direction === 'right') newCol = Math.min(chicken.col + 1, COLS - 1);
 
-            if (newCol === frog.col && newRow === frog.row) return;
+            if (newCol === chicken.col && newRow === chicken.row) return;
 
-            const oldCol = frog.col, oldRow = frog.row;
-            frog.col = newCol;
-            frog.row = newRow;
+            const oldCol = chicken.col, oldRow = chicken.row;
+            chicken.col = newCol;
+            chicken.row = newRow;
 
             // immediate collision check after tentative move
             if (checkCollision()) {
-                frog.col = oldCol;
-                frog.row = oldRow;
+                chicken.col = oldCol;
+                chicken.row = oldRow;
                 return;
             }
 
             // win condition: reach top row (row 8)
-            if (frog.row === ROWS - 1) {
+            if (chicken.row === ROWS - 1) {
                 score++;
                 updateScore();
-                // respawn frog at start
-                frog.col = 3;
-                frog.row = 0;
+                // respawn chicken at start
+                chicken.col = 3;
+                chicken.row = 0;
                 // fresh cars so no immediate unfair hit
                 resetCars();
             }
@@ -224,10 +224,10 @@
             for (let car of cars) {
                 const carCol = Math.round(car.fCol);
                 const wrappedCol = ((carCol % COLS) + COLS) % COLS;
-                if (car.row === frog.row && wrappedCol === frog.col) {
-                    // hit → reset frog to start
-                    frog.col = 3;
-                    frog.row = 0;
+                if (car.row === chicken.row && wrappedCol === chicken.col) {
+                    // hit → reset chicken to start
+                    chicken.col = 3;
+                    chicken.row = 0;
                     // reset cars to avoid instant repeat
                     resetCars();
                     break;
@@ -313,17 +313,17 @@
                 ctx.shadowOffsetY = 0;
             });
 
-            // ----- draw frog with soft glow -----
-            const frogX = frog.col * CELL_W + CELL_W / 2;
-            const frogY = canvas.height - (frog.row + 1) * CELL_H + CELL_H / 2;
+            // ----- draw chicken with soft glow -----
+            const chickenX = chicken.col * CELL_W + CELL_W / 2;
+            const chickenY = canvas.height - (chicken.row + 1) * CELL_H + CELL_H / 2;
 
-            ctx.shadowColor = '#b3ffb3';
+            ctx.shadowColor = '#fff9c4';
             ctx.shadowBlur = 16;
             ctx.font = `${CELL_H * 0.9}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#ffffff';
-            ctx.fillText('🐸', frogX, frogY);
+            ctx.fillText('🐔', chickenX, chickenY);
             ctx.shadowColor = 'transparent';
             ctx.shadowBlur = 0;
         }
@@ -331,7 +331,7 @@
         // ---------- game loop ----------
         function gameLoop() {
             updateCars();
-            checkCollisionAfterMove();  // frog may be hit
+            checkCollisionAfterMove();  // chicken may be hit
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -340,10 +340,10 @@
         function handleKey(e) {
             const key = e.key;
             if (key.startsWith('Arrow')) e.preventDefault();
-            if (key === 'ArrowUp') moveFrog('up');
-            else if (key === 'ArrowDown') moveFrog('down');
-            else if (key === 'ArrowLeft') moveFrog('left');
-            else if (key === 'ArrowRight') moveFrog('right');
+            if (key === 'ArrowUp') moveChicken('up');
+            else if (key === 'ArrowDown') moveChicken('down');
+            else if (key === 'ArrowLeft') moveChicken('left');
+            else if (key === 'ArrowRight') moveChicken('right');
         }
 
         // ---------- touch swipe (simple) ----------
@@ -372,11 +372,11 @@
 
             touchMoved = true;
             if (absDx > absDy) {
-                if (dx > 0) moveFrog('right');
-                else moveFrog('left');
+                if (dx > 0) moveChicken('right');
+                else moveChicken('left');
             } else {
-                if (dy > 0) moveFrog('down');
-                else moveFrog('up');
+                if (dy > 0) moveChicken('down');
+                else moveChicken('up');
             }
         }
 
